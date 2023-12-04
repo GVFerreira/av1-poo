@@ -16,9 +16,9 @@ function App() {
     const file = e.target.files[0]
     setArquivo(file)
 
-    // Verificar se o arquivo mudou antes de chamar a função obterInfoVideo
+     // Verificar se o arquivo mudou antes de chamar a função obterInfoVideo
     if (file !== arquivoRef.current) {
-      arquivoRef.current = file;
+      arquivoRef.current = file
 
       // Obter informações sobre o vídeo se o tipo de mensagem for vídeo
       if (tipoMensagem === 'video') {
@@ -28,54 +28,63 @@ function App() {
   }
 
   const formatarTelefone = (numero) => {
-    // Remover todos os caracteres não numéricos
-    const numeroLimpo = numero.replace(/\D/g, '');
+    const numeroLimpo = numero.replace(/\D/g, '')
 
     // Aplicar formatação (XX) XXXXX-XXXX
-    const match = numeroLimpo.match(/^(\d{2})(\d{5})(\d{4})$/);
+    const match = numeroLimpo.match(/^(\d{2})(\d{5})(\d{4})$/)
+
     if (match) {
-      const numeroFormatado = `(${match[1]}) ${match[2]}-${match[3]}`;
-      console.log('Número formatado:', numeroFormatado);
-      return numeroFormatado;
+      const numeroFormatado = `(${match[1]}) ${match[2]}-${match[3]}`
+      return numeroFormatado
+
     } else {
-      console.log('Sem correspondência, número limpo:', numeroLimpo);
-      return numeroLimpo; // Se não houver correspondência, retorna o número limpo
+      return numeroLimpo 
+
     }
-  };
+  }
 
   const handleNumeroTelefoneChange = (e) => {
-    const inputNumeroTelefone = e.target.value;
-    setDestinatario(formatarTelefone(inputNumeroTelefone));
+    const inputNumeroTelefone = e.target.value
+    setDestinatario(formatarTelefone(inputNumeroTelefone))
   }
 
   const obterInfoVideo = async (videoFile) => {
     try {
       const videoInfo = await new Promise((resolve, reject) => {
-        const reader = new FileReader();
+        const reader = new FileReader()
         reader.onload = function (e) {
-          const buffer = new Uint8Array(e.target.result);
-          axios.post('http://localhost:3001/obter-info-video', { buffer })
-            .then(response => resolve(response.data))
-            .catch(reject);
-        };
-        reader.readAsArrayBuffer(videoFile);
-      });
+          const buffer = new Uint8Array(e.target.result)
   
-      setDuracao(videoInfo.duracao);
-      setFormato(videoInfo.formato);
+          // Criar um objeto FormData e adicionar o buffer
+          const formData = new FormData()
+          formData.append('buffer', new Blob([buffer]))
+  
+          // Adicionar cabeçalho personalizado
+          const config = {
+            headers: {
+              'Content-Type': 'multipart/form-data'
+            }
+          }
+
+          // Fazer a solicitação POST
+          axios.post('http://localhost:3001/obter-info-video', {config, formData})
+            .then(response => resolve(response.data))
+            .catch(reject)
+        }
+        reader.readAsArrayBuffer(videoFile)
+      })
+  
+      setDuracao(videoInfo.duracao)
+      setFormato(videoInfo.formato)
+
     } catch (error) {
-      console.error('Erro ao obter informações do vídeo:', error.message);
+      console.error('Erro ao obter informações do vídeo:', error.message)
     }
   }
 
   const enviarMensagem = async (e) => {
     e.preventDefault()
     try {
-
-      if (tipoMensagem === 'video') {
-        // Obter informações sobre o vídeo se o tipo de mensagem for vídeo
-        obterInfoVideo(arquivo)
-      }
 
       const formData = new FormData()
       formData.append('canal', canal)
@@ -86,7 +95,7 @@ function App() {
       formData.append('formato', formato)
       formData.append('duracao', duracao)
 
-      await axios.post("http://localhost:3001/enviar-mensagem", formData, {
+      await axios.post("http://localhost:3001/enviar-mensagem", formData, { 
         headers: {
           'Content-Type': 'multipart/form-data'
         }

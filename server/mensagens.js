@@ -20,7 +20,7 @@ class MensagemVideo {
     }
   
     enviar() {
-      console.log(`Enviando mensagem de vídeo: ${this.texto}, Arquivo: ${this.arquivo}`);
+      console.log(`Enviando mensagem de vídeo: ${this.texto}, Arquivo: ${this.arquivo}`)
       
     }
 }
@@ -33,7 +33,7 @@ class MensagemFoto {
     }
   
     enviar() {
-      console.log(`Enviando mensagem de foto: ${this.texto}, Arquivo: ${this.arquivo}`);
+      console.log(`Enviando mensagem de foto: ${this.texto}, Arquivo: ${this.arquivo}`)
       
     }
 }

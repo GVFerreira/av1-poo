@@ -1,6 +1,5 @@
 // backend/index.js
 const express = require('express')
-const cors = require('cors')
 const app = express()
 
 const multer = require('multer')
@@ -15,33 +14,41 @@ const upload = multer({
 const ffprobe = require('fluent-ffmpeg')
 
 const bodyParser = require('body-parser')
-app.use(express.json({ limit: '10mb' }));
-app.use(express.urlencoded({ limit: '10mb', extended: true }));
+app.use(express.json({ limit: '10mb' }))
+app.use(express.urlencoded({ limit: '10mb', extended: true }))
 
+const cors = require('cors')
 const corsOptions = {
-  origin: 'http://localhost:3000',
-  methods: 'GET,HEAD,PUT,PATCH,POST,DELETE',
-  credentials: true,
-  optionsSuccessStatus: 204,
+  origin: '*',
+  methods: ['GET', 'POST', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization']
 }
 app.use(cors(corsOptions))
+
+app.options('*', (req, res) => {
+  res.header('Access-Control-Allow-Origin', '*')
+  res.header('Access-Control-Allow-Methods', 'GET, POST, OPTIONS')
+  res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization')
+  res.sendStatus(200)
+})
 
 const { MensagemTexto, MensagemVideo, MensagemFoto, MensagemArquivo } = require('./mensagens')
 
 class Canal {
   constructor(identificador) {
-    this.identificador = identificador;
+    this.identificador = identificador
   }
 
   enviarMensagem(tipo, texto, arquivo) {
-    const tipoArquivo = arquivo.mimetype
-    const fileExtension = tipoArquivo.split('/').pop()
+    
     switch(tipo) {
       case 'texto':
         console.log(`Detalhes da mensagem: \nCanal: ${this.identificador} \nTipo: ${tipo} \nTexto: ${texto} \nData e hora: ${new Date}`)
         break
       
       default:
+        const tipoArquivo = arquivo.mimetype
+        const fileExtension = tipoArquivo.split('/').pop()
         console.log(`Detalhes da mensagem: \nCanal: ${this.identificador} \nTipo ${tipo} \nFormato (extensão): ${fileExtension} \nArquivo ${arquivo.originalname} \nData e hora: ${new Date}`)
 
     }
@@ -50,50 +57,76 @@ class Canal {
 
 class CanalWhatsApp extends Canal {
   constructor(numeroTelefone) {
-    super(`WhatsApp - Telefone: ${numeroTelefone}`);
-    this.numeroTelefone = numeroTelefone;
+    super(`WhatsApp - Telefone: ${numeroTelefone}`)
+    this.numeroTelefone = numeroTelefone
   }
 
   enviarMensagem(tipo, texto, arquivo) {
     // Lógica específica para enviar mensagem via WhatsApp
-    super.enviarMensagem(tipo, texto, arquivo);
+    super.enviarMensagem(tipo, texto, arquivo)
   }
 }
 
 class CanalTelegram extends Canal {
   constructor(usuario) {
-    super(`Telegram - Telefone: ${usuario}`);
-    this.usuario = usuario;
+    super(`Telegram - Telefone: ${usuario}`)
+    this.usuario = usuario
   }
 
   enviarMensagem(tipo, texto, arquivo) {
     // Lógica específica para enviar mensagem via Telegram
-    super.enviarMensagem(tipo, texto, arquivo);
+    super.enviarMensagem(tipo, texto, arquivo)
   }
 }
 
 class CanalFacebook extends Canal {
   constructor(usuario) {
-    super(`Facebook - Usuário: ${usuario}`);
-    this.usuario = usuario;
+    super(`Facebook - Usuário: ${usuario}`)
+    this.usuario = usuario
   }
 
   enviarMensagem(tipo, texto, arquivo) {
     // Lógica específica para enviar mensagem via Facebook
-    super.enviarMensagem(tipo, texto, arquivo);
+    super.enviarMensagem(tipo, texto, arquivo)
   }
 }
 
 class CanalInstagram extends Canal {
   constructor(usuario) {
-    super(`Instagram - Usuário: ${usuario}`);
-    this.usuario = usuario;
+    super(`Instagram - Usuário: ${usuario}`)
+    this.usuario = usuario
   }
 
   enviarMensagem(tipo, texto, arquivo) {
     // Lógica específica para enviar mensagem via Instagram
-    super.enviarMensagem(tipo, texto, arquivo);
+    super.enviarMensagem(tipo, texto, arquivo)
   }
+}
+
+async function obterInfoVideo(video) {
+  return new Promise((resolve, reject) => {
+    ffprobe(video.buffer, (err, metadata) => {
+      if (err) {
+        reject(err);
+      } else {
+        const formato = metadata.format.format_name
+        const duracao = metadata.format.duration
+        resolve({ formato, duracao })
+      }
+    });
+  });
+}
+
+// Função para obter informações da foto
+function obterInfoFoto(foto) {
+  const formato = foto.mimetype
+  return { formato }
+}
+
+// Função para obter informações do arquivo genérico
+function obterInfoArquivo(arquivo) {
+  const formato = arquivo.mimetype
+  return { formato }
 }
 
 // Enviar mensagens
@@ -129,8 +162,15 @@ app.post('/enviar-mensagem', upload.single('arquivo'), async (req, res) => {
       mensagemObj = new MensagemTexto(texto, new Date())
       break
     case 'video':
-      const videoInfo = await obterInfoVideo(arquivo)
-      mensagemObj = new MensagemVideo(texto, arquivo, videoInfo.formato, videoInfo.duracao)
+      try {
+        const videoInfo = await obterInfoVideo(arquivo)
+        mensagemObj = new MensagemVideo(texto, arquivo, videoInfo.formato, videoInfo.duracao)
+        canalObj.enviarMensagem(tipo, texto, arquivo, { formato: videoInfo.formato, duracao: videoInfo.duracao })
+        res.json({ success: true, videoInfo })
+      } catch (error) {
+        console.error('Erro ao obter informações do vídeo:', error)
+        return res.status(500).json({ error: 'Erro ao obter informações do vídeo' })
+      }
       break
     case 'foto':
       const fotoInfo = obterInfoFoto(arquivo)
@@ -149,46 +189,18 @@ app.post('/enviar-mensagem', upload.single('arquivo'), async (req, res) => {
 })
 
 app.post('/obter-info-video', (req, res) => {
-  const { buffer } = req.body;
-  console.log('Requisição recebida em /obter-info-video')
+  const { buffer } = req.body
 
   ffprobe(buffer, (err, metadata) => {
     if (err) {
-      return res.status(500).json({ error: 'Erro ao obter informações do vídeo' });
+      return res.status(500).json({ error: 'Erro ao obter informações do vídeo' })
     }
 
-    const formato = metadata.format.format_name;
-    const duracao = metadata.format.duration;
-    res.json({ formato, duracao });
-  });
-});
-
-// Função para obter informações do vídeo
-async function obterInfoVideo(video) {
-  return new Promise((resolve, reject) => {
-    ffprobe(video.buffer, (err, metadata) => {
-      if (err) {
-        reject(err)
-      } else {
-        const formato = metadata.format.format_name
-        const duracao = metadata.format.duration
-        resolve({ formato, duracao })
-      }
-    })
+    const formato = metadata.format.format_name
+    const duracao = metadata.format.duration
+    res.json({ formato, duracao })
   })
-}
-
-// Função para obter informações da foto
-function obterInfoFoto(foto) {
-  const formato = foto.mimetype
-  return { formato }
-}
-
-// Função para obter informações do arquivo genérico
-function obterInfoArquivo(arquivo) {
-  const formato = arquivo.mimetype
-  return { formato }
-}
+})
 
 const PORT = 3001
 app.listen(PORT, () => {
